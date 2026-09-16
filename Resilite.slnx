@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/Resilite.Sample.Console/Resilite.Sample.Console.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Resilite/Resilite.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Resilite.UnitTest/Resilite.UnitTest.csproj" />
+  </Folder>
+</Solution>
