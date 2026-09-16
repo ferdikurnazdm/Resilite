@@ -12,7 +12,7 @@ public sealed class CircuitBreakerPolicy
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
     private CircuitState _state = CircuitState.Closed;
-    private DateTime _lastFailureTime = DateTime.MinValue;
+    private DateTime _openedAt = DateTime.MinValue;
     private bool _halfOpenProbeInProgress;
     private int _failureCount = 0;
 
@@ -31,26 +31,33 @@ public sealed class CircuitBreakerPolicy
     {
         ArgumentNullException.ThrowIfNull(action);
 
-        await EnsureExecutionAllowedAsync();
+        var isProbe = await EnterAsync();
 
         try
         {
             var result = await action(cancellationToken);
 
-            await HandleSuccessAsync();
+            await OnSuccessAsync(isProbe);
 
             return result;
         }
         catch (Exception exception)
             when (_options.ShouldHandle(exception))
         {
-            await HandleFailureAsync();
+            await OnFailureAsync(isProbe);
 
             throw;
         }
+        finally
+        {
+            if (isProbe)
+            {
+                await ReleaseHalfOpenProbeAsync();
+            }
+        }
     }
 
-    private async Task EnsureExecutionAllowedAsync()
+    private async Task<bool> EnterAsync()
     {
         await _stateLock.WaitAsync();
 
@@ -59,15 +66,15 @@ public sealed class CircuitBreakerPolicy
             switch (_state)
             {
                 case CircuitState.Closed:
-                    return;
+                    return false;
 
                 case CircuitState.Open:
                     HandleOpenState();
-                    return;
+                    return true;
 
                 case CircuitState.HalfOpen:
                     HandleHalfOpenState();
-                    return;
+                    return true;
 
                 default:
                     throw new InvalidOperationException(
@@ -82,7 +89,7 @@ public sealed class CircuitBreakerPolicy
 
     private void HandleOpenState()
     {
-        if (!HasBreakDurationElapsed())
+        if (!CanTryAgain())
         {
             throw new CircuitBrokenException(
                 "Circuit is open. The request was blocked.");
@@ -102,9 +109,9 @@ public sealed class CircuitBreakerPolicy
         _halfOpenProbeInProgress = true;
     }
 
-    private bool HasBreakDurationElapsed()
+    private bool CanTryAgain()
     {
-        return DateTime.UtcNow - _lastFailureTime >= _options.BreakDuration;
+        return DateTime.UtcNow - _openedAt >= _options.BreakDuration;
     }
 
     private void MoveToHalfOpen()
@@ -114,58 +121,134 @@ public sealed class CircuitBreakerPolicy
         _halfOpenProbeInProgress = true;
     }
 
-    private async Task HandleFailureAsync()
+    private async Task OnFailureAsync(bool isProbe)
     {
         await _stateLock.WaitAsync();
 
         try
         {
-            _failureCount++;
-
-            _lastFailureTime = DateTime.UtcNow;
-
-            if (ShouldOpenCircuit())
+            if (isProbe)
             {
-                OpenCircuit();
+                HandleProbeFailure();
+
+                return;
+            }
+
+            HandleNormalFailure();
+        }
+        finally
+        {
+            _stateLock.Release();
+        }
+    }
+
+
+    private void HandleProbeFailure()
+    {
+        if (_state != CircuitState.HalfOpen)
+        {
+            return;
+        }
+
+        OpenCircuit();
+    }
+
+    private void HandleNormalFailure()
+    {
+        if (_state != CircuitState.Closed)
+        {
+            return;
+        }
+
+        _failureCount++;
+
+        if (ShouldOpenCircuit())
+        {
+            OpenCircuit();
+        }
+    }
+
+
+    private bool ShouldOpenCircuit()
+    {
+        return _failureCount >= _options.FailureThreshold;
+    }
+
+    private void OpenCircuit()
+    {
+        _state = CircuitState.Open;
+
+        _openedAt = DateTime.UtcNow;
+
+        _halfOpenProbeInProgress = false;
+    }
+
+
+    private async Task OnSuccessAsync(bool isProbe)
+    {
+        await _stateLock.WaitAsync();
+
+        try
+        {
+            if (isProbe)
+            {
+                HandleProbeSuccess();
+                return;
+            }
+
+            HandleNormalSuccess();
+        }
+        finally
+        {
+            _stateLock.Release();
+        }
+    }
+
+    private void HandleProbeSuccess()
+    {
+        if (_state != CircuitState.HalfOpen)
+        {
+            return;
+        }
+
+        CloseCircuit();
+    }
+
+    private void HandleNormalSuccess()
+    {
+        if (_state != CircuitState.Closed)
+        {
+            return;
+        }
+
+        _failureCount = 0;
+    }
+
+    private void CloseCircuit()
+    {
+        _state = CircuitState.Closed;
+
+        _failureCount = 0;
+
+        _halfOpenProbeInProgress = false;
+
+        _openedAt = DateTime.MinValue;
+    }
+
+    private async Task ReleaseHalfOpenProbeAsync()
+    {
+        await _stateLock.WaitAsync();
+
+        try
+        {
+            if (_state == CircuitState.HalfOpen && _halfOpenProbeInProgress)
+            {
+                _halfOpenProbeInProgress = false;
             }
         }
         finally
         {
             _stateLock.Release();
         }
-    }
-
-    private bool ShouldOpenCircuit()
-    {
-        return _state == CircuitState.HalfOpen
-            || _failureCount >= _options.FailureThreshold;
-    }
-
-    private void OpenCircuit()
-    {
-        _state = CircuitState.Open;
-        _halfOpenProbeInProgress = false;
-    }
-
-
-    private async Task HandleSuccessAsync()
-    {
-        await _stateLock.WaitAsync();
-
-        try
-        {
-            CloseCircuit();
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
-    }
-
-    private void CloseCircuit()
-    {
-        _state = CircuitState.Closed;
-        _failureCount = 0;
-        _halfOpenProbeInProgress = false;
     }
 }
