@@ -33,7 +33,7 @@ public class RetryPolicy
             catch (Exception ex) 
                 when (_options.ShouldHandle(ex) && attempt <= _options.MaxRetryAttempts)
             {
-                var delayTime = CaculateDelayTime(attempt);
+                var delayTime = CalculateDelayTime(attempt);
 
                 await Task.Delay(delayTime, cancellationToken);
             }
@@ -41,17 +41,40 @@ public class RetryPolicy
     }
 
 
-    private TimeSpan CaculateDelayTime(int attempt)
+    private TimeSpan CalculateDelayTime(int attempt)
     {
-        var delayMilliseconds = _options.UseExponentialBackoff
-            ? _options.Delay.TotalMilliseconds * Math.Pow(2, attempt - 1)
-            : _options.Delay.TotalMilliseconds;
+        var baseMilliseconds = CalculateBackoffMilliseconds(attempt);
 
-        if (_options.UseJitter)
+        var delayMilliseconds = _options.Jitter switch
         {
-            delayMilliseconds *= Random.Shared.NextDouble();
-        }
+            JitterMode.None => baseMilliseconds,
+
+            JitterMode.Equal => baseMilliseconds * (0.8 + Random.Shared.NextDouble() * 0.4),
+
+            JitterMode.Full => Random.Shared.NextDouble() * baseMilliseconds,
+
+            _ => baseMilliseconds
+        };
+
+        delayMilliseconds = Math.Clamp(
+            delayMilliseconds,
+            _options.MinDelay.TotalMilliseconds,
+            _options.MaxDelay.TotalMilliseconds);
 
         return TimeSpan.FromMilliseconds(delayMilliseconds);
+    }
+
+    private double CalculateBackoffMilliseconds(int attempt)
+    {
+        if (!_options.UseExponentialBackoff)
+        {
+            return _options.Delay.TotalMilliseconds;
+        }
+
+        var exponent = attempt - 1;
+
+        var multiplier = Math.Pow(2, exponent);
+
+        return _options.Delay.TotalMilliseconds * multiplier;
     }
 }

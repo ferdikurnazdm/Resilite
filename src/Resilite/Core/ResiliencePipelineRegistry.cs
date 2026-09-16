@@ -16,17 +16,11 @@ public interface IResiliencePipelineRegistry
 
 public class ResiliencePipelineRegistry : IResiliencePipelineRegistry
 {
-    private readonly ConcurrentDictionary<string, IResiliencePipeline> _pipelines;
-
-    public ResiliencePipelineRegistry()
-    {
-        _pipelines = new ConcurrentDictionary<string, IResiliencePipeline>(
-            StringComparer.OrdinalIgnoreCase);
-    }
+    private readonly ConcurrentDictionary<string, IResiliencePipeline> _pipelines = 
+        new ConcurrentDictionary<string, IResiliencePipeline>(StringComparer.OrdinalIgnoreCase);
 
     public ResiliencePipelineRegistry(
         IEnumerable<ResiliencePipelineRegistration> registrations)
-        : this()
     {
         ArgumentNullException.ThrowIfNull(registrations);
 
@@ -38,6 +32,8 @@ public class ResiliencePipelineRegistry : IResiliencePipelineRegistry
 
     public void Register(ResiliencePipelineRegistration registration)
     {
+        ArgumentNullException.ThrowIfNull(registration);
+
         if (string.IsNullOrWhiteSpace(registration.Name))
             throw new ArgumentException("Pipeline name cannot be empty", nameof(registration.Name));
 

@@ -18,6 +18,8 @@ public static class CircuitBreakerOptionsValidator
 {
     public static void Validate(CircuitBreakerOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options);
+
         if (options.FailureThreshold <= 0)
         {
             throw new ArgumentOutOfRangeException(
@@ -34,5 +36,7 @@ public static class CircuitBreakerOptionsValidator
                 "Break Duration must be greater then Zero"
             );
         }
+
+        ArgumentNullException.ThrowIfNull(options.ShouldHandle);
     }
 }
