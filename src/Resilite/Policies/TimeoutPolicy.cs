@@ -4,20 +4,13 @@ namespace Resilite;
 
 public class TimeoutPolicy
 {
-    private readonly TimeSpan _timeout;
+    private readonly TimeoutOptions _options;
 
-    public TimeoutPolicy(TimeSpan timeout)
+    public TimeoutPolicy(TimeoutOptions options)
     {
-        if(timeout <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(timeout),
-                timeout,
-                "Timeout must be grater then Zero"
-            );
-        }
+        TimeoutOptionsValidator.Validate(options);
 
-        _timeout = timeout;
+        _options = options;
     }
 
     public async Task<T> ExecuteAsync<T>(
@@ -29,7 +22,7 @@ public class TimeoutPolicy
         using var cancellationTokenSource = CancellationTokenSource
             .CreateLinkedTokenSource(externalToken);
      
-        cancellationTokenSource.CancelAfter(_timeout);
+        cancellationTokenSource.CancelAfter(_options.Timeout);
 
         try
         {
@@ -38,7 +31,7 @@ public class TimeoutPolicy
         catch (OperationCanceledException) when (!externalToken.IsCancellationRequested)
         {
             throw new ResilienceTimeoutException(
-                $"The operation exceeded the configured timeout period ({_timeout.TotalMilliseconds}ms).");
+                $"The operation exceeded the configured timeout period ({_options.Timeout.TotalMilliseconds}ms).");
         }
     }
 }

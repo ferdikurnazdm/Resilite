@@ -9,7 +9,13 @@ public class CircuitBreakerPolicyTests
     public async Task ExecuteAsync_WhenFailuresExceedThreshold_ShouldBreakCircuit()
     {
         // Arrange
-        var policy = new CircuitBreakerPolicy(failureThreshold: 2, breakDuration: TimeSpan.FromSeconds(5));
+        var circuitBreakerOptions = new CircuitBreakerOptions
+        {
+            FailureThreshold = 2,
+            BreakDuration = TimeSpan.FromSeconds(5)
+        };
+
+        var policy = new CircuitBreakerPolicy(circuitBreakerOptions);
 
         // Act & Assert 1. Hata
         Func<Task> act1 = async () => await policy.ExecuteAsync<string>(async ct => throw new IOException("Hata 1"), CancellationToken.None);
@@ -23,6 +29,6 @@ public class CircuitBreakerPolicyTests
         Func<Task> act3 = async () => await policy.ExecuteAsync(async ct => Task.FromResult("Çalışmamalı"), CancellationToken.None);
 
         await act3.Should().ThrowAsync<CircuitBrokenException>()
-                 .WithMessage("*Devre AÇIK*");
+                 .WithMessage("Circuit is open. The request was blocked.");
     }
 }

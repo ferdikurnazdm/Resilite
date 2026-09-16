@@ -10,12 +10,17 @@ public class RetryPolicyTests
     public async Task ExecuteAsync_WhenFailsThenSucceeds_ShouldRetryAndSucceed()
     {
         // Arrange
-        var policy = new RetryPolicy(maxRetryAttempts: 3, delay: TimeSpan.FromMilliseconds(10), useExponentialBackoff: false);
+        var retryOptions = new RetryOptions
+        {
+            MaxRetryAttempts = 3,
+            Delay = TimeSpan.FromMilliseconds(10),
+            UseExponentialBackoff = false,
+        };
 
-        // NSubstitute ile sanal bir bağımlılık/aksiyon yaratıyoruz
+        var policy = new RetryPolicy(retryOptions);
+
         var unstableService = Substitute.For<IAsyncActionService>();
 
-        // İlk 2 çağrıda IOException fırlat, 3.de "Başarılı" dön
         unstableService.InvokeAsync(Arg.Any<CancellationToken>())
             .Returns(
                 _ => throw new IOException("Geçici hata 1"),
@@ -29,7 +34,6 @@ public class RetryPolicyTests
         // Assert
         result.Should().Be("Başarılı Sonuç");
 
-        // NSubstitute ile metodun tam 3 kez çağrıldığını doğruluyoruz
         await unstableService.Received(3).InvokeAsync(Arg.Any<CancellationToken>());
     }
 
@@ -37,7 +41,14 @@ public class RetryPolicyTests
     public async Task ExecuteAsync_WhenExceedsMaxRetries_ShouldThrowOriginalException()
     {
         // Arrange
-        var policy = new RetryPolicy(maxRetryAttempts: 2, delay: TimeSpan.FromMilliseconds(10));
+        var retryOptions = new RetryOptions
+        {
+            MaxRetryAttempts = 2,
+            Delay = TimeSpan.FromMilliseconds(10),
+            UseExponentialBackoff = false,
+        };
+
+        var policy = new RetryPolicy(retryOptions);
 
         // Act
         Func<Task> act = async () => await policy.ExecuteAsync<object>(async ct =>

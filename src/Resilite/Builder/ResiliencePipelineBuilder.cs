@@ -8,33 +8,45 @@ public sealed class ResiliencePipelineBuilder
     private RetryPolicy? _retryPolicy;
     private CircuitBreakerPolicy? _circuitBreakerPolicy;
 
-    public ResiliencePipelineBuilder AddTimeout(TimeSpan timeout)
+    public ResiliencePipelineBuilder AddTimeout(
+        Action<TimeoutOptions> configure)
     {
-        _timeoutPolicy = new TimeoutPolicy(timeout);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var options = new TimeoutOptions();
+
+        configure(options);
+
+        _timeoutPolicy = new TimeoutPolicy(options);
 
         return this;
     }
 
     public ResiliencePipelineBuilder AddRetry(
-        int maxRetryAttempts, 
-        TimeSpan delay, 
-        bool useExponentialBackoff = true)
+        Action<RetryOptions> configure)
     {
-        _retryPolicy = new RetryPolicy(
-            maxRetryAttempts, 
-            delay, 
-            useExponentialBackoff);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var options = new RetryOptions();
+
+        configure(options);
+
+        _retryPolicy = new RetryPolicy(options);
 
         return this;
     }
 
     public ResiliencePipelineBuilder AddCircuitBreaker(
-        int failureThreshold, 
-        TimeSpan breakDuration)
+        Action<CircuitBreakerOptions> configure)
     {
-        _circuitBreakerPolicy = new CircuitBreakerPolicy(
-            failureThreshold, 
-            breakDuration);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var options = new CircuitBreakerOptions();
+
+        configure(options);
+
+        _circuitBreakerPolicy =
+            new CircuitBreakerPolicy(options);
 
         return this;
     }

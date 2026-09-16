@@ -61,25 +61,4 @@ public sealed class ResiliencePipeline : IResiliencePipeline
             
         }, cancellationToken);
     }
-
-    public T Execute<T>(Func<T> action)
-    {
-        return ExecuteAsync(async ct => 
-        {
-            return await Task.FromResult(action());
-
-        })
-        .GetAwaiter()
-        .GetResult();
-    }
-
-    public void Execute(Action action)
-    {
-        Execute(() => 
-        {
-            action();
-
-            return true;
-        });
-    }
 }

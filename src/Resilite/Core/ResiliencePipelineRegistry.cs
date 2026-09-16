@@ -3,31 +3,50 @@ using System.Collections.Concurrent;
 
 namespace Resilite;
 
+public sealed record ResiliencePipelineRegistration(
+    string Name,
+    IResiliencePipeline Pipeline);
+
 public interface IResiliencePipelineRegistry
 {
-    void Register(
-        string name, 
-        IResiliencePipeline pipeline);
-
     IResiliencePipeline Get(string name);
+    void Register(
+        ResiliencePipelineRegistration registration);
 }
 
 public class ResiliencePipelineRegistry : IResiliencePipelineRegistry
 {
-    private readonly ConcurrentDictionary<string, IResiliencePipeline> _pipelines = 
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, IResiliencePipeline> _pipelines;
 
-    public void Register(string name, IResiliencePipeline pipeline)
+    public ResiliencePipelineRegistry()
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Pipeline name cannot be empty", nameof(name));
+        _pipelines = new ConcurrentDictionary<string, IResiliencePipeline>(
+            StringComparer.OrdinalIgnoreCase);
+    }
 
-        ArgumentNullException.ThrowIfNull(pipeline);
+    public ResiliencePipelineRegistry(
+        IEnumerable<ResiliencePipelineRegistration> registrations)
+        : this()
+    {
+        ArgumentNullException.ThrowIfNull(registrations);
 
-        if (!_pipelines.TryAdd(name, pipeline))
+        foreach (var registration in registrations)
+        {
+            Register(registration);
+        }
+    }
+
+    public void Register(ResiliencePipelineRegistration registration)
+    {
+        if (string.IsNullOrWhiteSpace(registration.Name))
+            throw new ArgumentException("Pipeline name cannot be empty", nameof(registration.Name));
+
+        ArgumentNullException.ThrowIfNull(registration.Pipeline);
+
+        if (!_pipelines.TryAdd(registration.Name, registration.Pipeline))
         {
             throw new InvalidOperationException(
-                $"A resilience pipeline with the name '{name}' is already registered.");
+                $"A resilience pipeline with the name '{registration.Name}' is already registered.");
         }
     }
 

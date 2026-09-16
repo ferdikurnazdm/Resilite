@@ -22,7 +22,7 @@ Console.WriteLine("\n--------------------------------------------------\n");
 // 4. Senaryo: Tüm Kuralların Birlikte Çalıştığı Boru Hattı (Pipeline) Entegrasyonu
 await Scenario_CombinedPipeline_SuccessAndFailureAsync();
 
-Scenario_SynchronousAndProtocolUsage();
+// Scenario_SynchronousAndProtocolUsage();
 
 Console.WriteLine("\n==================================================");
 Console.WriteLine("       TÜM SENARYO TESTLERİ TAMAMLANDI            ");
@@ -39,7 +39,7 @@ static async Task Scenario_Timeout_VariationsAsync()
     Console.WriteLine(">>> [SENARYO 1] Zaman Aşımı (Timeout) Varyasyonları Test Ediliyor...");
 
     var pipeline = new ResiliencePipelineBuilder()
-        .AddTimeout(TimeSpan.FromSeconds(1)) // 1 saniye sınır
+        .AddTimeout(options => options.Timeout = TimeSpan.FromSeconds(1)) // 1 saniye sınır
         .Build();
 
     // Durum A: Süreye uyan işlem (Başarılı olmalı)
@@ -88,10 +88,13 @@ static async Task Scenario_Retry_ExponentialBackoffAsync()
 
     // 4 deneme hakkı, başlangıç gecikmesi 200ms
     var pipeline = new ResiliencePipelineBuilder()
-        .AddRetry(
-            maxRetryAttempts: 4,
-            delay: TimeSpan.FromMilliseconds(200),
-            useExponentialBackoff: true)
+        .AddRetry(options =>
+        {
+            options.MaxRetryAttempts = 4;
+            options.Delay = TimeSpan.FromMilliseconds(200);
+            options.UseExponentialBackoff = true;
+            options.UseJitter = true;
+        })
         .Build();
 
     int attempt = 0;
@@ -130,7 +133,11 @@ static async Task Scenario_CircuitBreaker_FullLifecycleAsync()
 
     // 2 hatada devreyi aç, 3 saniye açık tut
     var pipeline = new ResiliencePipelineBuilder()
-        .AddCircuitBreaker(failureThreshold: 2, breakDuration: TimeSpan.FromSeconds(3))
+        .AddCircuitBreaker(options => 
+        {
+            options.FailureThreshold = 2; 
+            options.BreakDuration = TimeSpan.FromSeconds(3);
+        })
         .Build();
 
     // 1. İstek: Başarısız olacak (Hata sayacı: 1)
@@ -192,13 +199,17 @@ static async Task Scenario_CombinedPipeline_SuccessAndFailureAsync()
 
     // Kurulum: 1.5 sn timeout, 2 retry hakkı, 3 hata eşikli devre kesici
     var pipeline = new ResiliencePipelineBuilder()
-        .AddTimeout(TimeSpan.FromSeconds(1.5))
-        .AddRetry(
-            maxRetryAttempts: 2, 
-            delay: TimeSpan.FromMilliseconds(100))
-        .AddCircuitBreaker(
-            failureThreshold: 3, 
-            breakDuration: TimeSpan.FromSeconds(5))
+        .AddTimeout(options =>  options.Timeout = TimeSpan.FromSeconds(1.5))
+        .AddRetry(options => 
+        {
+            options.MaxRetryAttempts = 2; 
+            options.Delay = TimeSpan.FromMilliseconds(100);
+        })
+        .AddCircuitBreaker(options => 
+        {
+            options.FailureThreshold = 3; 
+            options.BreakDuration = TimeSpan.FromSeconds(5);
+        })
         .Build();
 
     int callCount = 0;
@@ -237,54 +248,54 @@ static async Task Scenario_CombinedPipeline_SuccessAndFailureAsync()
 /// <summary>
 /// SENARYO 5: Senkron (Sync) metotlar ve farklı protokol simülasyonları testi.
 /// </summary>
-static void Scenario_SynchronousAndProtocolUsage()
-{
-    Console.WriteLine(">>> [SENARYO 5] Senkron Metot ve Protokol Entegrasyon Testi...");
+// static void Scenario_SynchronousAndProtocolUsage()
+// {
+//     Console.WriteLine(">>> [SENARYO 5] Senkron Metot ve Protokol Entegrasyon Testi...");
 
-    // Boru hattımızı kuruyoruz (Retry ve Timeout içeren akış)
-    var pipeline = new ResiliencePipelineBuilder()
-        .AddRetry(maxRetryAttempts: 3, delay: TimeSpan.FromMilliseconds(100))
-        .Build();
+//     // Boru hattımızı kuruyoruz (Retry ve Timeout içeren akış)
+//     var pipeline = new ResiliencePipelineBuilder()
+//         .AddRetry(maxRetryAttempts: 3, delay: TimeSpan.FromMilliseconds(100))
+//         .Build();
 
-    int syncAttempt = 0;
+//     int syncAttempt = 0;
 
-    try
-    {
-        // Senkron Değer Döndüren Metot Testi (.Execute<T>)
-        var syncResult = pipeline.Execute(() =>
-        {
-            syncAttempt++;
+//     try
+//     {
+//         // Senkron Değer Döndüren Metot Testi (.Execute<T>)
+//         var syncResult = pipeline.Execute(() =>
+//         {
+//             syncAttempt++;
 
-            Console.WriteLine($"-> Senkron işlem çalıştırılıyor... (Deneme: {syncAttempt})");
+//             Console.WriteLine($"-> Senkron işlem çalıştırılıyor... (Deneme: {syncAttempt})");
 
-            if (syncAttempt < 3)
-            {
-                throw new IOException("Erişim reddedildi, tekrar deneniyor...");
-            }
+//             if (syncAttempt < 3)
+//             {
+//                 throw new IOException("Erişim reddedildi, tekrar deneniyor...");
+//             }
 
-            return "Senkron Veri Okundu";
-        });
+//             return "Senkron Veri Okundu";
+//         });
 
-        Console.WriteLine($"[SENARYO 5 BAŞARILI]: {syncResult} (Toplam Deneme: {syncAttempt})");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[Senkron Hata]: {ex.Message}");
-    }
+//         Console.WriteLine($"[SENARYO 5 BAŞARILI]: {syncResult} (Toplam Deneme: {syncAttempt})");
+//     }
+//     catch (Exception ex)
+//     {
+//         Console.WriteLine($"[Senkron Hata]: {ex.Message}");
+//     }
 
-    try
-    {
-        Console.WriteLine("\n-> Senkron void işlem tetikleniyor...");
+//     try
+//     {
+//         Console.WriteLine("\n-> Senkron void işlem tetikleniyor...");
 
-        pipeline.Execute(() =>
-        {
-            Console.WriteLine("Senkron loglama veya dosya yazma işlemi gerçekleştirildi.");
-        });
+//         pipeline.Execute(() =>
+//         {
+//             Console.WriteLine("Senkron loglama veya dosya yazma işlemi gerçekleştirildi.");
+//         });
 
-        Console.WriteLine("[SENARYO 5.2 BAŞARILI]: Void işlem hatasız tamamlandı.");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[Void Hata]: {ex.Message}");
-    }
-}
+//         Console.WriteLine("[SENARYO 5.2 BAŞARILI]: Void işlem hatasız tamamlandı.");
+//     }
+//     catch (Exception ex)
+//     {
+//         Console.WriteLine($"[Void Hata]: {ex.Message}");
+//     }
+// }

@@ -5,38 +5,13 @@ namespace Resilite;
 
 public class RetryPolicy
 {
-    private readonly int _maxRetryAttempts;
-    private readonly TimeSpan _delay;
-    private readonly bool _useExponentialBackoff;
+    private readonly RetryOptions _options;
 
-    public RetryPolicy(
-        int maxRetryAttempts,
-        TimeSpan delay,
-        bool useExponentialBackoff = true)
+    public RetryPolicy(RetryOptions options)
     {
-        if (delay <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(delay),
-                delay,
-                "Delay must be grater then Zero"
-            );
-        }
+        RetryOptionsValidator.Validate(options);
 
-        if (maxRetryAttempts <= 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(maxRetryAttempts),
-                maxRetryAttempts,
-                "Maximum Retry Attempts must be grater then Zero"
-            );
-        }
-
-        _delay = delay;
-
-        _maxRetryAttempts = maxRetryAttempts;
-
-        _useExponentialBackoff = useExponentialBackoff;
+        _options = options;
     }
 
     public async Task<T> ExecuteAsync<T>(
@@ -55,7 +30,8 @@ public class RetryPolicy
             {
                 return await action(cancellationToken);
             }
-            catch (Exception ex) when (IsTransient(ex) && attempt <= _maxRetryAttempts)
+            catch (Exception ex) 
+                when (_options.ShouldHandle(ex) && attempt <= _options.MaxRetryAttempts)
             {
                 var delayTime = CaculateDelayTime(attempt);
 
@@ -67,20 +43,15 @@ public class RetryPolicy
 
     private TimeSpan CaculateDelayTime(int attempt)
     {
-        if (!_useExponentialBackoff)
+        var delayMilliseconds = _options.UseExponentialBackoff
+            ? _options.Delay.TotalMilliseconds * Math.Pow(2, attempt - 1)
+            : _options.Delay.TotalMilliseconds;
+
+        if (_options.UseJitter)
         {
-            return _delay;
+            delayMilliseconds *= Random.Shared.NextDouble();
         }
 
-        return TimeSpan.FromMilliseconds(
-            _delay.TotalMilliseconds * Math.Pow(2, attempt - 1));
-    }
-
-
-    private static bool IsTransient(Exception ex)
-    {
-        return ex is TimeoutException or 
-                     IOException or 
-                     SocketException;
+        return TimeSpan.FromMilliseconds(delayMilliseconds);
     }
 }

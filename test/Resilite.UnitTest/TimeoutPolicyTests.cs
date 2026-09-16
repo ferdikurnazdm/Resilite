@@ -9,7 +9,12 @@ public class TimeoutPolicyTests
     public async Task ExecuteAsync_WhenOperationCompletesInTime_ShouldReturnResult()
     {
         // Arrange
-        var policy = new TimeoutPolicy(TimeSpan.FromSeconds(2));
+        var timeoutOptions = new TimeoutOptions
+        {
+            Timeout = TimeSpan.FromSeconds(2)
+        };
+
+        var policy = new TimeoutPolicy(timeoutOptions);
 
         // Act
         var result = await policy.ExecuteAsync(async ct =>
@@ -26,7 +31,12 @@ public class TimeoutPolicyTests
     public async Task ExecuteAsync_WhenOperationExceedsTimeout_ShouldThrowResilienceTimeoutException()
     {
         // Arrange
-        var policy = new TimeoutPolicy(TimeSpan.FromMilliseconds(50));
+        var timeoutOptions = new TimeoutOptions
+        {
+            Timeout = TimeSpan.FromMilliseconds(50)
+        };
+
+        var policy = new TimeoutPolicy(timeoutOptions);
 
         // Act
         Func<Task> act = async () => await policy.ExecuteAsync(async ct =>
@@ -37,6 +47,6 @@ public class TimeoutPolicyTests
 
         // Assert
         await act.Should().ThrowAsync<ResilienceTimeoutException>()
-                 .WithMessage("*zaman aşımı süresini*");
+                 .WithMessage("The operation exceeded the configured timeout period (50ms).");
     }
 }

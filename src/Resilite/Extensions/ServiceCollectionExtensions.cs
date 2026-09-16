@@ -5,14 +5,26 @@ namespace Resilite;
 
 public static class ServiceCollectionExtensions
 {
-    private static readonly ResiliencePipelineRegistry _globalRegistry = new();
+    public static IServiceCollection AddResiliteRegistry(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddSingleton<IResiliencePipelineRegistry, ResiliencePipelineRegistry>();
+
+        return services;
+    }
 
     public static IServiceCollection AddResilitePipeline(
         this IServiceCollection services,
         string name,
         Action<ResiliencePipelineBuilder> configureBuilder)
     {
-        if (configureBuilder == null) throw new ArgumentNullException(nameof(configureBuilder));
+        ArgumentNullException.ThrowIfNull(services);
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        ArgumentNullException.ThrowIfNull(configureBuilder);
 
         var builder = new ResiliencePipelineBuilder();
 
@@ -20,14 +32,10 @@ public static class ServiceCollectionExtensions
 
         var pipeline = builder.Build();
 
-        _globalRegistry.Register(name, pipeline);
-
-        services.AddSingleton<IResiliencePipelineRegistry>(_globalRegistry);
-
-        if (name.Equals("Default", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddSingleton<IResiliencePipeline>(pipeline);
-        }
+        services.AddSingleton(
+            new ResiliencePipelineRegistration(
+                name,
+                pipeline));
 
         return services;
     }
@@ -36,6 +44,8 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         Action<ResiliencePipelineBuilder> configureBuilder)
     {
-        return services.AddResilitePipeline("Default", configureBuilder);
+        return services.AddResilitePipeline(
+            "Default",
+            configureBuilder);
     }
 }
