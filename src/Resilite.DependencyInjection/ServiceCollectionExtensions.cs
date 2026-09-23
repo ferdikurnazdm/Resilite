@@ -1,7 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Resilite;
+namespace Resilite.DependencyInjection;
 
 public static class ServiceCollectionExtensions
 {

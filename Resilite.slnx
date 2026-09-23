@@ -3,6 +3,7 @@
     <Project Path="samples/Resilite.Sample.Console/Resilite.Sample.Console.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/Resilite.DependencyInjection/Resilite.DependencyInjection.csproj" />
     <Project Path="src/Resilite/Resilite.csproj" />
   </Folder>
   <Folder Name="/test/">

@@ -14,7 +14,9 @@ public sealed class ResiliencePipeline : IResiliencePipeline
         CircuitBreakerPolicy? circuitBreakerPolicy = null)
     {
         _timeoutPolicy = timeoutPolicy;
+
         _retryPolicy = retryPolicy;
+        
         _circuitBreakerPolicy = circuitBreakerPolicy;
     }
 

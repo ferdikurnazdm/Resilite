@@ -164,7 +164,7 @@ static async Task Scenario_CircuitBreaker_FullLifecycleAsync()
             return "Çalıştı";
         });
     }
-    catch (CircuitBrokenException ex)
+    catch (BrokenCircuitException ex)
     {
         Console.WriteLine($"[KORUMA DEVREYE GİRDİ]: {ex.Message}");
     }

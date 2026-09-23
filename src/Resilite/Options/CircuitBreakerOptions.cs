@@ -14,7 +14,7 @@ public sealed class CircuitBreakerOptions
 }
 
 
-public static class CircuitBreakerOptionsValidator
+internal static class CircuitBreakerOptionsValidator
 {
     public static void Validate(CircuitBreakerOptions options)
     {
@@ -37,6 +37,10 @@ public static class CircuitBreakerOptionsValidator
             );
         }
 
-        ArgumentNullException.ThrowIfNull(options.ShouldHandle);
+        if (options.ShouldHandle is null)
+        {
+            throw new ArgumentNullException(
+                nameof(options.ShouldHandle));
+        }
     }
 }

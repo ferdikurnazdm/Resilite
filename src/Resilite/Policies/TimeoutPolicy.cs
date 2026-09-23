@@ -2,7 +2,7 @@ using System;
 
 namespace Resilite;
 
-public class TimeoutPolicy
+public sealed class TimeoutPolicy
 {
     private readonly TimeoutOptions _options;
 
@@ -28,10 +28,11 @@ public class TimeoutPolicy
         {
             return await action(cancellationTokenSource.Token);
         }
-        catch (OperationCanceledException) when (!externalToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (!externalToken.IsCancellationRequested)
         {
             throw new ResilienceTimeoutException(
-                $"The operation exceeded the configured timeout period ({_options.Timeout.TotalMilliseconds}ms).");
+                _options.Timeout,
+                innerException: ex);
         }
     }
 }

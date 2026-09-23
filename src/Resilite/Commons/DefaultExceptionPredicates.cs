@@ -9,6 +9,7 @@ internal static class DefaultExceptionPredicates
     {
         return exception is TimeoutException
             or IOException
-            or SocketException;
+            or SocketException
+            or HttpRequestException;
     }
 }

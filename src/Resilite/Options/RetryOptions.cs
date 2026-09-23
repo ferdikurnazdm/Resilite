@@ -28,7 +28,7 @@ public sealed class RetryOptions
 }
 
 
-public static class RetryOptionsValidator
+internal static class RetryOptionsValidator
 {
     public static void Validate(RetryOptions options)
     {

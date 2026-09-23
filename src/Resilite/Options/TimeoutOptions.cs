@@ -8,7 +8,7 @@ public sealed class TimeoutOptions
         = TimeSpan.FromSeconds(30);
 }
 
-public static class TimeoutOptionsValidator
+internal static class TimeoutOptionsValidator
 {
     public static void Validate(TimeoutOptions options)
     {

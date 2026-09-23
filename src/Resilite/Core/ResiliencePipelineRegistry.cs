@@ -14,7 +14,7 @@ public interface IResiliencePipelineRegistry
         ResiliencePipelineRegistration registration);
 }
 
-public class ResiliencePipelineRegistry : IResiliencePipelineRegistry
+public sealed class ResiliencePipelineRegistry : IResiliencePipelineRegistry
 {
     private readonly ConcurrentDictionary<string, IResiliencePipeline> _pipelines = 
         new ConcurrentDictionary<string, IResiliencePipeline>(StringComparer.OrdinalIgnoreCase);
